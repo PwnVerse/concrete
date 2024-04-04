@@ -154,24 +154,48 @@ impl Coverage {
     }
 
     pub fn get_coverage(&mut self) -> Result<Vec<u64>> {
-        let mut cov = Vec::new();
-        self.dbg.unpause()?;
-        loop {
-            match self.dbg.resume() {
-                Ok((WaitStatus::Exited(pid, _), _)) => {
-                    println!("Process Exited {}", pid);
-                    break;
-                }
-                Ok((WaitStatus::Stopped(_, _), rip)) => {
-                    cov.push(rip);
-                    continue;
-                }
-                Ok((status, _)) => {
-                    return Err(anyhow!("Interuppted by unexpected status: {:?}", status))
-                }
-                Err(e) => return Err(anyhow!("Error while continuing: {}", e)),
+    let mut cov = Vec::new();
+    self.dbg.unpause()?;
+    loop {
+        match self.dbg.resume() {
+            Ok((WaitStatus::Exited(pid, _), _)) => {
+                println!("Process Exited {}", pid);
+                break;
             }
+            Ok((WaitStatus::Stopped(_, sig), rip)) => {
+                match sig {
+                    Signal::SIGSTOP => {
+                        // Handle SIGSTOP here
+                        println!("Process Stopped by SIGSTOP");
+                        // Continue execution after receiving SIGSTOP
+                        continue;
+                    }
+                    Signal::SIGALRM => {
+                        // Handle SIGALRM here
+                        println!("Received SIGALRM signal");
+                        // Continue execution after receiving SIGALRM
+                        continue;
+                    }
+                    Signal::SIGUSR1 | Signal::SIGUSR2 => {
+                        // Handle SIGUSR1 or SIGUSR2 here
+                        println!("Received SIGUSR signal");
+                        // Continue execution after receiving SIGUSR1 or SIGUSR2
+                        continue;
+                    }
+                    _ => {
+                        // Handle other signals here
+                        println!("Received other signal: {:?}", sig);
+                        // Depending on your requirement, you may choose to
+                        // handle or ignore other signals differently
+                    }
+                }
+            }
+            Ok((status, _)) => {
+                return Err(anyhow!("Interrupted by unexpected status: {:?}", status))
+            }
+            Err(e) => return Err(anyhow!("Error while continuing: {}", e)),
         }
-        Ok(cov)
     }
+    Ok(cov)
+}
 }
